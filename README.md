@@ -1,4 +1,4 @@
-# Guide to Babylon Smart Contract Development
+# Contract Deployment - Babylon Testnet
 
 ## Development Environment Setup
 
