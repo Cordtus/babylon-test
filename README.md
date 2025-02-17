@@ -1,5 +1,14 @@
 # Contract Deployment - Babylon Testnet
 
+## Deployment
+
+- **Contract Address**: bbn1w2y5auktmc0k0j5xktxyauj5drdagejhhjtld4d5tp2syzpfndes8swx6l
+- **Code Upload TX**: [156A4FDD4828E4FD7E711F133DD7328A309002A5583055AC335AC15488258E60](https://testnet.babylon.explorers.guru/transaction/156A4FDD4828E4FD7E711F133DD7328A309002A5583055AC335AC15488258E60)
+- **Instantiation TX**: [D2E38310E4F52EB09AAD427F538C76C0107C8533C664902F1709AB6639C6A031](https://testnet.babylon.explorers.guru/transaction/D2E38310E4F52EB09AAD427F538C76C0107C8533C664902F1709AB6639C6A031)
+- **Message Updates**:
+  - Update 1: [0C944C772443269D33EC3B152634AF7BA31D79530845DDECE336B9ECD64BC744](https://testnet.babylon.explorers.guru/transaction/0C944C772443269D33EC3B152634AF7BA31D79530845DDECE336B9ECD64BC744)
+  - Update 2: [A689A15CA36BA80947CEFD70EF44836F46185E5A809C13C45C2324AC0A8C2BAC](https://testnet.babylon.explorers.guru/transaction/A689A15CA36BA80947CEFD70EF44836F46185E5A809C13C45C2324AC0A8C2BAC)
+
 ## Development Environment Setup
 
 ### Dependencies
@@ -21,69 +30,70 @@ source $HOME/.cargo/env
 rustup target add wasm32-unknown-unknown
 ```
 
-### Development Environment Notes
+### IDE and Development Tools
+- VSCode (recommended)
+  - Essential extensions:
+    - rust-analyzer
+    - Better TOML
+    - CodeLLDB
+  - Add rust-analyzer settings to workspace
+- GitHub CLI (`gh`) for repository management
+- `tmux` for managing multiple terminal sessions
 
-- VSCode setup not documented in official guides but highly recommended
-  - Essential extensions: rust-analyzer, Better TOML, CodeLLDB
-  - Consider adding settings for rust-analyzer to workspace
-- GitHub CLI (`gh`) useful for repository management
-- `tmux` helpful for managing multiple terminal sessions (node sync, contract development)
+## Known Issues and Workarounds
 
-### Known Issues and Workarounds
+### HD Path Issue (Critical)
+**This was the root cause of initial deployment failures and is not documented in official guides.**
 
-#### Node Setup Issues
+The babylond SDK key generation differs from standard Cosmos key derivation:
+- Use standard Cosmos HD path: `m/44'/118'/0'/0/0`
+- When importing keys, explicitly specify the path:
 
-1. State sync not documented/working
-   - Currently best to sync from genesis or snapshot
-   - Snapshot speeds up process but requires trust in snapshot provider
-   - Consider documenting state sync process if/when working
+```bash
+babylond keys add good --hd-path "m/44'/118'/0'/0/0" --recover
+```
 
-#### Development Environment Issues
+### Node Setup Issues
+1. State sync not clearly documented
+   - Possibly non-working (?)
+   - Only option is to sync from snapshot
 
-1. Docker optimization problematic in LXC
-   - Use `wasm-opt` directly instead
-   - Commands:
-     ```bash
-     wasm-opt -Oz contract.wasm -o optimized.wasm
-     ```
-   - Not as optimal as Docker optimizer but workable
+2. Docker optimization problematic in LXC
+   - Alternative: Use `wasm-opt` directly
+   ```bash
+   wasm-opt -Oz contract.wasm -o optimized.wasm
+   ```
+   - Less optimal but workable
 
-#### Testnet Access Issues
-
-*Faucet accessibility limited*
-
-   - Current options not well documented
-   - Need more accessible faucets (Telegram/Discord/Web)
-   - Should have higher limits with rate limiting
-   - Local testnet may be better for heavy / initial development
+### Testnet Access Issues
+- Faucet accessibility limited - consider additional avenues (Telegram, Twitter)
+- Current options not quite adequate. (Discord faucet ran out, also provides an inadequate amount of tokens for any real testing)
+- Must use local testnet for heavy development
 
 ## Contract Usage Guide
 
 ### Contract Overview
-
-Our contract implements a simple message storage system with owner permissions:
- 
+Simple message storage system with owner permissions:
 - Store and update messages
 - Owner-only message updates
 - Query current message
 
-### Building and Deploying
+### Building and Deployment Options
 
+#### Option 1: Traditional Deployment
 1. Build Contract
-
 ```bash
 cargo build --release --target wasm32-unknown-unknown
 ```
-**Optimization**
 
-2.a: No Docker method
+2. Optimize (Choose one method):
 
+a) Direct optimization:
 ```bash
 wasm-opt -Oz target/wasm32-unknown-unknown/release/babylon_contract.wasm -o babylon_contract.wasm
 ```
-2.b: Docker method (preferred)
-Produces smallest possible file size, recommended for production deployments.
 
+b) Docker optimization (preferred):
 ```bash
 # create Dockerfile
 cat > Dockerfile <<EOF
@@ -99,12 +109,9 @@ docker run --rm -v "$(pwd)":/code \
   cosmwasm/rust-optimizer:0.14.0
 ```
 
-Typically results in smaller file than other method.
-
-
-3. Upload contract on Chain
-
+3. Upload and Deploy:
 ```bash
+# Upload
 babylond tx wasm store babylon_contract.wasm \
     --from=$key \
     --gas=auto \
@@ -113,15 +120,11 @@ babylond tx wasm store babylon_contract.wasm \
     -b=sync \
     --yes \
     $keyringBackend
-```
 
-4. Get Code ID
-```bash
+# Get Code ID
 CODE_ID=$(babylond query wasm list-code -o json | jq -r '.code_infos[-1].code_id')
-```
 
-5. Instantiate Contract
-```bash
+# Instantiate
 babylond tx wasm instantiate $CODE_ID \
     '{"message":"initial message"}' \
     --from=$key \
@@ -131,24 +134,33 @@ babylond tx wasm instantiate $CODE_ID \
     -b=sync \
     --yes \
     $keyringBackend
-```
 
-6. Get Contract Address
-
-```bash
+# Get Address
 CONTRACT_ADDR=$(babylond query wasm list-contract-by-code $CODE_ID -o json | jq -r '.contracts[-1]')
 ```
 
-### Interacting with Contract
-
-#### Query Message
-
+#### Option 2: Quick Deployment Script
+1. Setup:
 ```bash
-babylond query wasm contract-state smart $CONTRACT_ADDR '{"get_message":{}}'
+cd scripts && yarn
+cp .env.template .env
+# Edit .env and add your mnemonic
 ```
 
-#### Update Message (Owner Only)
+2. Deploy:
 ```bash
+yarn deploy        # Basic deployment
+yarn deploy:test   # Deploy and run automated tests
+```
+
+### Contract Interaction
+
+#### Via Babylond CLI
+```bash
+# Query
+babylond query wasm contract-state smart $CONTRACT_ADDR '{"get_message":{}}'
+
+# Update Message
 babylond tx wasm execute $CONTRACT_ADDR \
     '{"update_message":{"message":"new message"}}' \
     --from=$key \
@@ -158,86 +170,67 @@ babylond tx wasm execute $CONTRACT_ADDR \
     $keyringBackend
 ```
 
-### Error Handling
-
-- Unauthorized updates return clear error message
-- Storage errors handled gracefully
-- Gas estimation automatic but may need adjustment
-
-## Suggestions
-
-   - Local Testing
-   - Use `cargo test` extensively
-   - Test all error conditions
-   - Test authorization checks
-
-## Quick Deployment Script Usage
-
-### Overview
-Instead of waiting for a full node sync, I decided to deploy directly to testnet using a simple js script.
-
-### Setup and Usage
-
-1. Install Node.js dependencies:
+#### Via REST API
+A helper script is required for querying CosmWasm contracts via REST. You can use [cwquery.sh](https://raw.githubusercontent.com/Cordtus/bitsnpcs/refs/heads/main/scripts/cwquery.sh) or similar tools.
 
 ```bash
-cd scripts && yarn
+./cwquery.sh https://babylon-testnet-api.polkachu.com \
+    <contract_address> \
+    '{"get_message":{}}'
 ```
 
-2. Configure environment:
+## Troubleshooting Guide
 
-```bash
-cp .env.template .env
-# Edit .env and add your mnemonic
-```
+### Deployment Issues
+1. Account Not Found
+   - Verify HD path matches `m/44'/118'/0'/0/0`
+   - Use explicit HD path when importing keys
+   - Consider using wallet generation tool for verification
 
-3. Deploy contract:
+2. Gas Issues
+   - Default working values:
+     - Gas wanted: ~1086991
+     - Gas used: ~1007343
+     - Gas price: 0.002ubbn
+   - Adjust in config.js if needed
 
-```bash
-yarn deploy        # Basic deployment
-yarn deploy:test   # Deploy and run automated tests
-```
+3. RPC Endpoints
+   - Try alternate endpoints if primary is unresponsive
+   - Verify endpoint supports required APIs
 
-### Expected Output
+### API Query Issues
+1. Unknown Variant Errors
+   - Verify query message format
+   - Check JSON escaping
+   - Confirm using correct API endpoint
 
-```
-Deploying to bbn-test-5 via https://babylon-testnet-rpc.polkachu.com
-Deploying from address: bbn14jqa0s90a3vqp8ft82qy2h7y0n0jqpvxg3cl6f
-Uploading contract...
-Upload result: {
-  originalSize: 129000,
-  originalChecksum: "...",
-  compressedSize: 129000,
-  compressedChecksum: "...",
-  codeId: 123,
-  events: [...]
-}
-Instantiating contract...
-Contract address: bbn1...
+## Development Tools
+- [Wallet Generation Tool](https://github.com/Cordtus/wallet_generator)
+- REST API query tools
+- Deployment scripts
 
-Running tests...
-Initial message: "initial message"
-Update result: { ... }
-Updated message: "updated message"
-```
+## Testing Strategy
+1. Local Testing
+   - Extensive cargo test usage
+   - Error condition coverage
+   - Authorization checks
 
-### Troubleshooting
+2. Testnet Testing
+   - Deploy with yarn deploy:test
+   - REST API verification
+   - Transaction confirmation
 
-- If upload fails with out of gas, adjust GAS_PRICE in config.js
-- If RPC endpoint is unresponsive, try alternate endpoints in config.js
-- Ensure sufficient testnet BBN tokens in deployer account
-
-## Future Improvements Needed
-
+## Future Improvements
 1. Development Environment
-   - More comprehensive documentation for dev environment setup
+   - Comprehensive setup documentation
    - Standardized development container
-   - Reference to Non-Docker optimization tool/methods
+   - Non-Docker optimization tools
 
 2. Network Access
-   - More accessible faucets
-   - State sync documentation/fixes
+   - Improved faucet accessibility
+   - State sync documentation
 
 3. Contract Tools
-   - CLI tools for common operations
-   - Better contract templates
+   - Enhanced CLI tools
+   - Improved templates
+   - Better details around key derivation
