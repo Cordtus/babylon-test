@@ -211,16 +211,16 @@ A helper script is required for querying CosmWasm contracts via REST. You can us
 
 ## Testing Strategy
 1. Local Testing
-   - Extensive cargo test usage
+   - Cargo test
    - Error condition coverage
-   - Authorization checks
+   - Auth checks
 
 2. Testnet Testing
    - Deploy with yarn deploy:test
-   - REST API verification
-   - Transaction confirmation
+   - REST API query validates message
+   - Transaction confirmation by hash
 
-## Future Improvements
+## Areas for Improvement
 1. Development Environment
    - Comprehensive setup documentation
    - Standardized development container
@@ -230,7 +230,8 @@ A helper script is required for querying CosmWasm contracts via REST. You can us
    - Improved faucet accessibility
    - State sync documentation
 
-3. Contract Tools
+3. Development Tools
+   - More detailed environment setup tips
    - Enhanced CLI tools
    - Improved templates
    - Better details around key derivation
