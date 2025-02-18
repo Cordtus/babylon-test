@@ -42,7 +42,7 @@ rustup target add wasm32-unknown-unknown
 
 ## Known Issues and Workarounds
 
-### HD Path Issue (Critical)
+### HD Path Issue
 **This was the root cause of initial deployment failures and is not documented in official guides.**
 
 The babylond SDK key generation differs from standard Cosmos key derivation:
